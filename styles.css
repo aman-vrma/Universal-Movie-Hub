@@ -576,6 +576,39 @@ a {
     opacity: 0.88;
 }
 
+.ad-shield-badge {
+    background: rgba(40, 167, 69, 0.15);
+    color: #28a745;
+    border: 1px solid rgba(40, 167, 69, 0.4);
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.trailer-btn {
+    background: #202020;
+    color: #ff4444;
+    border: 1px solid #ff4444;
+    padding: 9px 15px;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.trailer-btn:hover {
+    background: #ff4444;
+    color: #fff;
+}
+
 /* ==========================================
    8. MOBILE BOTTOM NAVIGATION
    ========================================== */

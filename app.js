@@ -1,4 +1,18 @@
 // ==========================================
+// AD & POPUP SHIELD PROTECTION
+// ==========================================
+// Intercept and permanently block rogue popup windows
+try {
+    const _nativeOpen = window.open;
+    window.open = function(url, target, features) {
+        console.warn("🛡️ Ad-Shield: Blocked popup window ->", url);
+        return null;
+    };
+} catch (e) {
+    console.warn("Shield init warning:", e);
+}
+
+// ==========================================
 // CONFIGURATION & GLOBAL STATE
 // ==========================================
 const SVG_FALLBACK_POSTER = "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='342' height='513' viewBox='0 0 342 513'%3E%3Crect width='342' height='513' fill='%23141414'/%3E%3Ccircle cx='171' cy='220' r='50' fill='%23222222'/%3E%3Cpath d='M155 195 L195 220 L155 245 Z' fill='%23e50914'/%3E%3Ctext x='171' y='300' fill='%23777777' font-family='sans-serif' font-size='16' text-anchor='middle'%3ENo Poster Available%3C/text%3E%3C/svg%3E";
@@ -12,7 +26,7 @@ const CONFIG = {
 };
 
 let watchlist = JSON.parse(localStorage.getItem('movieHubWatchlist')) || [];
-let activeItem = { id: null, type: 'movie', season: 1, episode: 1, currentServer: 1 };
+let activeItem = { id: null, type: 'movie', season: 1, episode: 1, currentServer: 1, trailerKey: null, isTrailer: false };
 let activeItemData = null;
 let userLang = localStorage.getItem('appLanguage') || 'en-US';
 let currentActiveSection = 'home';
@@ -116,11 +130,27 @@ async function showMovieDetails(id, type) {
     showLoading();
 
     const streamType = (type === 'tv' || type === 'series') ? 'tv' : 'movie';
-    activeItem = { id: id, type: streamType, season: 1, episode: 1, currentServer: 1 };
+    activeItem = { 
+        id: id, 
+        type: streamType, 
+        season: 1, 
+        episode: 1, 
+        currentServer: 1,
+        trailerKey: null,
+        isTrailer: false
+    };
 
     try {
         const data = await getMovies({ id: activeItem.id, type: activeItem.type });
         activeItemData = data;
+
+        // Extract YouTube Trailer if available
+        if (data.videos && data.videos.results && data.videos.results.length > 0) {
+            const trailer = data.videos.results.find(v => v.site === 'YouTube' && (v.type === 'Trailer' || v.type === 'Teaser')) || data.videos.results[0];
+            if (trailer && trailer.key) {
+                activeItem.trailerKey = trailer.key;
+            }
+        }
 
         const modal = document.getElementById('detailsModal');
         const displayArea = document.getElementById('detailsContent');
@@ -135,7 +165,10 @@ async function showMovieDetails(id, type) {
 
         displayArea.innerHTML = `
             <div class="modal-body-content">
-                <h2 class="modal-title">${title}</h2>
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px; gap:10px; flex-wrap:wrap;">
+                    <h2 class="modal-title" style="margin-bottom:0;">${title}</h2>
+                    <span class="ad-shield-badge"><i class="fas fa-shield-alt"></i> Ad-Shield Active</span>
+                </div>
 
                 <div class="modal-meta-row">
                     <span class="rating-badge"><i class="fas fa-star"></i> ${rating}</span>
@@ -157,7 +190,7 @@ async function showMovieDetails(id, type) {
                 ` : ''}
 
                 <div class="video-player-wrap" id="playerWrap">
-                    <iframe src="${streamUrl}" allowfullscreen allow="autoplay; encrypted-media; picture-in-picture" scrolling="no"></iframe>
+                    ${renderPlayerIframe(streamUrl)}
                 </div>
 
                 <p class="modal-overview">
@@ -165,9 +198,15 @@ async function showMovieDetails(id, type) {
                 </p>
 
                 <div class="modal-actions">
-                    <button class="server-btn btn-server-1 active" id="serverBtn1" onclick="switchServer(1)">Server 1</button>
+                    <button class="server-btn btn-server-1 active" id="serverBtn1" onclick="switchServer(1)">Server 1 (Ad-Free HD)</button>
                     <button class="server-btn btn-server-2" id="serverBtn2" onclick="switchServer(2)">Server 2</button>
                     <button class="server-btn btn-server-3" id="serverBtn3" onclick="switchServer(3)">Server 3</button>
+
+                    ${activeItem.trailerKey ? `
+                        <button class="trailer-btn" id="trailerBtn" onclick="toggleTrailerView()">
+                            <i class="fab fa-youtube"></i> Watch Trailer
+                        </button>
+                    ` : ''}
 
                     <button id="modalWatchlistBtn" class="watchlist-toggle-btn ${isSaved ? 'saved' : 'not-saved'}" onclick="toggleWatchlistCurrent()">
                         <i class="fas ${isSaved ? 'fa-check' : 'fa-plus'}"></i> ${isSaved ? 'Saved in Watchlist' : 'Add to Watchlist'}
@@ -186,24 +225,92 @@ async function showMovieDetails(id, type) {
     }
 }
 
+// Safe Iframe renderer with strict ad-blocking sandbox attributes
+function renderPlayerIframe(url) {
+    return `
+        <iframe 
+            id="mainPlayerFrame" 
+            src="${url}" 
+            sandbox="allow-scripts allow-same-origin allow-forms allow-presentation" 
+            allow="autoplay; encrypted-media; fullscreen; picture-in-picture" 
+            allowfullscreen 
+            referrerpolicy="origin"
+            scrolling="no">
+        </iframe>
+    `;
+}
+
+// Server URL router
 function getStreamUrl(serverNo, type, id, season = 1, episode = 1) {
     if (type === 'tv') {
-        if (serverNo === 1) return `https://vidsrc.me/embed/tv?tmdb=${id}&season=${season}&episode=${episode}`;
-        if (serverNo === 2) return `https://vidsrc.cc/v2/embed/tv/${id}/${season}/${episode}`;
-        return `https://vidsrc.xyz/embed/tv?tmdb=${id}&season=${season}&episode=${episode}`;
+        // Server 1: VidLink (Ad-Free, Built-in episodes, Subtitles)
+        if (serverNo === 1) {
+            return `https://vidlink.pro/tv/${id}/${season}/${episode}?primaryColor=e50914&secondaryColor=141414&iconColor=e50914`;
+        }
+        // Server 2: vidsrc.to / vidsrc.pro
+        if (serverNo === 2) {
+            return `https://vidsrc.to/embed/tv/${id}/${season}/${episode}`;
+        }
+        // Server 3: vidsrc.me (sandboxed)
+        return `https://vidsrc.me/embed/tv?tmdb=${id}&season=${season}&episode=${episode}`;
     } else {
-        if (serverNo === 1) return `https://vidsrc.me/embed/movie?tmdb=${id}`;
-        if (serverNo === 2) return `https://vidsrc.cc/v2/embed/movie/${id}`;
-        return `https://vidsrc.xyz/embed/movie?tmdb=${id}`;
+        // Server 1: VidLink (Ad-Free, HD, Subtitles)
+        if (serverNo === 1) {
+            return `https://vidlink.pro/movie/${id}?primaryColor=e50914&secondaryColor=141414&iconColor=e50914`;
+        }
+        // Server 2: vidsrc.to / vidsrc.pro
+        if (serverNo === 2) {
+            return `https://vidsrc.to/embed/movie/${id}`;
+        }
+        // Server 3: vidsrc.me (sandboxed)
+        return `https://vidsrc.me/embed/movie?tmdb=${id}`;
     }
 }
 
 function switchServer(serverNo) {
     activeItem.currentServer = serverNo;
+    activeItem.isTrailer = false;
+
     document.querySelectorAll('.server-btn').forEach((btn, idx) => {
         btn.classList.toggle('active', (idx + 1) === serverNo);
     });
+
+    const trailerBtn = document.getElementById('trailerBtn');
+    if (trailerBtn) {
+        trailerBtn.innerHTML = '<i class="fab fa-youtube"></i> Watch Trailer';
+        trailerBtn.style.background = '#202020';
+        trailerBtn.style.color = '#ff4444';
+    }
+
     reloadPlayer();
+    showToast(`Switched to Server ${serverNo}`);
+}
+
+function toggleTrailerView() {
+    const wrap = document.getElementById('playerWrap');
+    const trailerBtn = document.getElementById('trailerBtn');
+    if (!wrap || !activeItem.trailerKey) return;
+
+    if (!activeItem.isTrailer) {
+        activeItem.isTrailer = true;
+        wrap.innerHTML = `
+            <iframe 
+                src="https://www.youtube-nocookie.com/embed/${activeItem.trailerKey}?autoplay=1&rel=0" 
+                allow="autoplay; encrypted-media; fullscreen" 
+                allowfullscreen 
+                scrolling="no">
+            </iframe>
+        `;
+        if (trailerBtn) {
+            trailerBtn.innerHTML = '<i class="fas fa-film"></i> Back to Movie';
+            trailerBtn.style.background = 'var(--primary-red)';
+            trailerBtn.style.color = '#fff';
+        }
+        document.querySelectorAll('.server-btn').forEach(btn => btn.classList.remove('active'));
+        showToast("Playing Official Trailer");
+    } else {
+        switchServer(activeItem.currentServer || 1);
+    }
 }
 
 function updateEpisode() {
@@ -212,6 +319,7 @@ function updateEpisode() {
     if (sInput && eInput) {
         activeItem.season = Math.max(1, parseInt(sInput.value) || 1);
         activeItem.episode = Math.max(1, parseInt(eInput.value) || 1);
+        activeItem.isTrailer = false;
         reloadPlayer();
         showToast(`Playing Season ${activeItem.season}, Episode ${activeItem.episode}`);
     }
@@ -222,7 +330,7 @@ function reloadPlayer() {
     if (!wrap) return;
 
     const url = getStreamUrl(activeItem.currentServer, activeItem.type, activeItem.id, activeItem.season, activeItem.episode);
-    wrap.innerHTML = `<iframe src="${url}" allowfullscreen allow="autoplay; encrypted-media; picture-in-picture" scrolling="no"></iframe>`;
+    wrap.innerHTML = renderPlayerIframe(url);
 }
 
 function closeModal() {
@@ -230,10 +338,11 @@ function closeModal() {
     if (modal) modal.classList.remove('active');
     document.body.style.overflow = 'auto';
 
-    // Clear iframe to immediately kill audio/video stream in background
+    // Destroy iframe immediately to terminate audio and streaming video
     const wrap = document.getElementById('playerWrap');
     if (wrap) wrap.innerHTML = '';
     activeItemData = null;
+    activeItem.isTrailer = false;
 }
 
 function handleBackdropClick(event) {
@@ -278,7 +387,6 @@ function navigateTo(sectionId) {
     if (sectionId === 'series') fetchAndRender('/discover/tv', 'seriesGrid');
     if (sectionId === 'anime') fetchAndRender('/discover/tv?with_genres=16&with_origin_country=JP', 'animeGrid');
     if (sectionId === 'home') {
-        // If returning to home without active search
         const searchInput = document.getElementById('searchInput');
         if (!searchInput || !searchInput.value.trim()) {
             hideSearchResultsView();
@@ -322,7 +430,6 @@ async function executeSearch(query) {
     try {
         const data = await getMovies({ query: cleanQuery });
         
-        // Always make sure home section is active
         navigateTo('home');
 
         const searchResultsSection = document.getElementById('searchResultsSection');
@@ -394,7 +501,6 @@ function toggleWatchlistCurrent() {
             modalBtn.innerHTML = '<i class="fas fa-plus"></i> Add to Watchlist';
         }
     } else {
-        // Only keep necessary properties to keep localStorage lightweight
         const itemToSave = {
             id: activeItemData.id,
             title: activeItemData.title || activeItemData.name || 'Untitled',
@@ -413,7 +519,6 @@ function toggleWatchlistCurrent() {
 
     localStorage.setItem('movieHubWatchlist', JSON.stringify(watchlist));
 
-    // If currently on watchlist page, update grid live
     if (currentActiveSection === 'watchlist') {
         renderWatchlist();
     }
@@ -457,7 +562,6 @@ function setLanguage(lang) {
     localStorage.setItem('appLanguage', lang);
     showToast(`Language switched to ${lang === 'hi-IN' ? 'Hindi' : 'English'}`);
     
-    // Refresh current view with new language
     if (currentActiveSection === 'home') {
         initializeApp();
     } else {
@@ -476,7 +580,6 @@ function hideLoading() {
 }
 
 function showToast(message, type = "success") {
-    // Remove existing toast if any
     const existing = document.querySelector('.custom-toast');
     if (existing) existing.remove();
 
@@ -501,7 +604,6 @@ function showToast(message, type = "success") {
     });
     document.body.appendChild(toast);
 
-    // Animate in
     requestAnimationFrame(() => {
         toast.style.transform = 'translateX(-50%) translateY(0)';
         toast.style.opacity = '1';
