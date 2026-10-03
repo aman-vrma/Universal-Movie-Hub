@@ -225,13 +225,11 @@ async function showMovieDetails(id, type) {
     }
 }
 
-// Safe Iframe renderer with strict ad-blocking sandbox attributes
 function renderPlayerIframe(url) {
     return `
         <iframe 
             id="mainPlayerFrame" 
             src="${url}" 
-            sandbox="allow-scripts allow-same-origin allow-forms allow-presentation" 
             allow="autoplay; encrypted-media; fullscreen; picture-in-picture" 
             allowfullscreen 
             referrerpolicy="origin"
