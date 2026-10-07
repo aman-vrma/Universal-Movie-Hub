@@ -750,3 +750,188 @@ a {
         padding: 14px;
     }
 }
+
+/* ==========================================
+   12. SETTINGS BUTTON & SETTINGS MODAL
+   ========================================== */
+.settings-header-btn {
+    background: #1e1e1e;
+    color: var(--text-white);
+    border: 1px solid var(--border-dark);
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: all 0.25s ease;
+}
+
+.settings-header-btn:hover {
+    background: var(--primary-red);
+    border-color: var(--primary-red);
+    transform: rotate(60deg);
+}
+
+.settings-modal-content {
+    max-width: 480px;
+    padding: 24px 20px;
+}
+
+.settings-title {
+    font-size: 1.3rem;
+    font-weight: 700;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.settings-group {
+    margin-bottom: 18px;
+}
+
+.settings-label {
+    display: block;
+    font-size: 0.84rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-bottom: 7px;
+}
+
+.settings-select {
+    width: 100%;
+    background: #1f1f1f;
+    color: #fff;
+    border: 1px solid var(--border-dark);
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    font-size: 0.88rem;
+    outline: none;
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+
+.settings-select:focus, .settings-select:hover {
+    border-color: var(--primary-red);
+}
+
+.shield-status-box {
+    background: rgba(40, 167, 69, 0.12);
+    border: 1px solid rgba(40, 167, 69, 0.35);
+    padding: 10px 14px;
+    border-radius: var(--radius-sm);
+    font-size: 0.82rem;
+    color: #4ade80;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 500;
+}
+
+.status-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #28a745;
+    box-shadow: 0 0 8px #28a745;
+    display: inline-block;
+    flex-shrink: 0;
+}
+
+.reset-data-btn {
+    width: 100%;
+    background: #221a1a;
+    color: #ff5555;
+    border: 1px solid #4a2525;
+    padding: 9px 14px;
+    border-radius: var(--radius-sm);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.2s;
+}
+
+.reset-data-btn:hover {
+    background: #dc3545;
+    color: #fff;
+    border-color: #dc3545;
+}
+
+.settings-footer {
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    padding-top: 14px;
+    margin-top: 20px;
+    text-align: center;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+}
+
+/* ==========================================
+   13. CLICK SHIELD OVERLAY (AD ABSORBER)
+   ========================================== */
+.click-shield {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.72);
+    backdrop-filter: blur(3px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 20;
+    transition: opacity 0.25s ease;
+}
+
+.click-shield.fade-out {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.shield-play-btn {
+    width: 64px;
+    height: 64px;
+    background: var(--primary-red);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 1.5rem;
+    padding-left: 4px;
+    box-shadow: 0 0 25px rgba(229, 9, 20, 0.65);
+    margin-bottom: 10px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.click-shield:hover .shield-play-btn {
+    transform: scale(1.1);
+    box-shadow: 0 0 35px rgba(229, 9, 20, 0.9);
+}
+
+.shield-text {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 0.5px;
+}
+
+.shield-subtext {
+    font-size: 0.75rem;
+    color: #4ade80;
+    margin-top: 5px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-weight: 600;
+}

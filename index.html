@@ -19,7 +19,12 @@
             <select id="langSelect" onchange="setLanguage(this.value)" class="lang-select" aria-label="Select Language">
                 <option value="en-US">English</option>
                 <option value="hi-IN">Hindi (हिंदी)</option>
+                <option value="ja-JP">Anime (JP)</option>
+                <option value="ko-KR">Korean (KR)</option>
             </select>
+            <button class="settings-header-btn" onclick="openSettingsModal()" aria-label="Settings" title="App Settings">
+                <i class="fas fa-cog"></i>
+            </button>
         </div>
     </header>
 
@@ -131,6 +136,54 @@
         <div class="modal-content">
             <button class="close-modal" onclick="closeModal()" aria-label="Close modal">&times;</button>
             <div id="detailsContent"></div>
+        </div>
+    </div>
+
+    <!-- App Settings Modal -->
+    <div id="settingsModal" class="modal" onclick="handleSettingsBackdrop(event)">
+        <div class="modal-content settings-modal-content">
+            <button class="close-modal" onclick="closeSettingsModal()" aria-label="Close settings">&times;</button>
+            <h2 class="settings-title"><i class="fas fa-cog" style="color:var(--primary-red);"></i> App Settings</h2>
+            
+            <div class="settings-group">
+                <label class="settings-label"><i class="fas fa-language"></i> Content Language</label>
+                <select id="settingsLangSelect" class="settings-select" onchange="setLanguage(this.value)">
+                    <option value="en-US">English (Hollywood & Global)</option>
+                    <option value="hi-IN">Hindi (Bollywood & Dubbed)</option>
+                    <option value="ja-JP">Japanese (Anime Original)</option>
+                    <option value="ko-KR">Korean (K-Drama)</option>
+                </select>
+            </div>
+
+            <div class="settings-group">
+                <label class="settings-label"><i class="fas fa-server"></i> Default Streaming Server</label>
+                <select id="defaultServerSelect" class="settings-select" onchange="setDefaultServer(this.value)">
+                    <option value="1">Server 1 (VidSrc Fast - Recommended)</option>
+                    <option value="2">Server 2 (VidSrc Cloud - Multi-Source)</option>
+                    <option value="3">Server 3 (VidSrc Mirror)</option>
+                    <option value="4">Server 4 (VidLink Player)</option>
+                </select>
+            </div>
+
+            <div class="settings-group">
+                <label class="settings-label"><i class="fas fa-shield-alt"></i> Pop-up & Ad Protection</label>
+                <div class="shield-status-box">
+                    <span class="status-indicator"></span>
+                    <span>Single-Ad Shield & Redirect Protection Active</span>
+                </div>
+            </div>
+
+            <div class="settings-group">
+                <label class="settings-label"><i class="fas fa-trash-alt"></i> Storage & Data</label>
+                <button class="reset-data-btn" onclick="clearAllWatchlist()">
+                    <i class="fas fa-trash"></i> Clear All Saved Watchlist
+                </button>
+            </div>
+
+            <div class="settings-footer">
+                <p>Universal Movie Hub • Special Edition</p>
+                <p style="font-size:0.75rem; color:#777; margin-top:3px;">Created with ❤️ by Aman</p>
+            </div>
         </div>
     </div>
 

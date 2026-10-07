@@ -18,7 +18,7 @@ try {
 const SVG_FALLBACK_POSTER = "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='342' height='513' viewBox='0 0 342 513'%3E%3Crect width='342' height='513' fill='%23141414'/%3E%3Ccircle cx='171' cy='220' r='50' fill='%23222222'/%3E%3Cpath d='M155 195 L195 220 L155 245 Z' fill='%23e50914'/%3E%3Ctext x='171' y='300' fill='%23777777' font-family='sans-serif' font-size='16' text-anchor='middle'%3ENo Poster Available%3C/text%3E%3C/svg%3E";
 
 const CONFIG = {
-    API_KEY: 'f0da50d7b0c16984ccab202db5b1a2b1', // TMDB API Key
+    API_KEY: 'f0da50d7b0c16984ccab202db5b1a2b1', // Stable TMDB API Key
     BASE_URL: 'https://api.themoviedb.org/3',
     IMG_PATH: 'https://image.tmdb.org/t/p/w342',
     BACKDROP_PATH: 'https://image.tmdb.org/t/p/w780',
@@ -26,7 +26,16 @@ const CONFIG = {
 };
 
 let watchlist = JSON.parse(localStorage.getItem('movieHubWatchlist')) || [];
-let activeItem = { id: null, type: 'movie', season: 1, episode: 1, currentServer: 1, trailerKey: null, isTrailer: false };
+let defaultServer = parseInt(localStorage.getItem('appDefaultServer')) || 1;
+let activeItem = { 
+    id: null, 
+    type: 'movie', 
+    season: 1, 
+    episode: 1, 
+    currentServer: defaultServer, 
+    trailerKey: null, 
+    isTrailer: false 
+};
 let activeItemData = null;
 let userLang = localStorage.getItem('appLanguage') || 'en-US';
 let currentActiveSection = 'home';
@@ -35,8 +44,15 @@ let currentActiveSection = 'home';
 // INITIALIZATION
 // ==========================================
 document.addEventListener('DOMContentLoaded', () => {
+    // Sync language picker dropdowns
     const langPicker = document.getElementById('langSelect');
     if (langPicker) langPicker.value = userLang;
+    const settingsLangPicker = document.getElementById('settingsLangSelect');
+    if (settingsLangPicker) settingsLangPicker.value = userLang;
+
+    // Sync default server select
+    const serverPicker = document.getElementById('defaultServerSelect');
+    if (serverPicker) serverPicker.value = defaultServer;
 
     setupNavigation();
     setupSearchListeners();
@@ -135,9 +151,9 @@ async function showMovieDetails(id, type) {
         type: streamType, 
         season: 1, 
         episode: 1, 
-        currentServer: 1,
-        trailerKey: null,
-        isTrailer: false
+        currentServer: defaultServer,
+        trailerKey: null, 
+        isTrailer: false 
     };
 
     try {
@@ -161,7 +177,7 @@ async function showMovieDetails(id, type) {
         const genres = (data.genres && data.genres.length > 0) ? data.genres.map(g => g.name).join(' • ') : '';
 
         // Initial Stream URL
-        const streamUrl = getStreamUrl(1, streamType, id, 1, 1);
+        const streamUrl = getStreamUrl(defaultServer, streamType, id, 1, 1);
 
         displayArea.innerHTML = `
             <div class="modal-body-content">
@@ -190,6 +206,11 @@ async function showMovieDetails(id, type) {
                 ` : ''}
 
                 <div class="video-player-wrap" id="playerWrap">
+                    <div id="clickShield" class="click-shield" onclick="dismissShield()">
+                        <div class="shield-play-btn"><i class="fas fa-play"></i></div>
+                        <span class="shield-text">Click to Play Video</span>
+                        <span class="shield-subtext"><i class="fas fa-shield-alt"></i> Ad-Shield absorbs popup triggers</span>
+                    </div>
                     ${renderPlayerIframe(streamUrl)}
                 </div>
 
@@ -198,9 +219,10 @@ async function showMovieDetails(id, type) {
                 </p>
 
                 <div class="modal-actions">
-                    <button class="server-btn btn-server-1 active" id="serverBtn1" onclick="switchServer(1)">Server 1 (Ad-Free HD)</button>
-                    <button class="server-btn btn-server-2" id="serverBtn2" onclick="switchServer(2)">Server 2</button>
-                    <button class="server-btn btn-server-3" id="serverBtn3" onclick="switchServer(3)">Server 3</button>
+                    <button class="server-btn btn-server-1 ${defaultServer === 1 ? 'active' : ''}" id="serverBtn1" onclick="switchServer(1)">Server 1 (Fast)</button>
+                    <button class="server-btn btn-server-2 ${defaultServer === 2 ? 'active' : ''}" id="serverBtn2" onclick="switchServer(2)">Server 2 (Cloud)</button>
+                    <button class="server-btn btn-server-3 ${defaultServer === 3 ? 'active' : ''}" id="serverBtn3" onclick="switchServer(3)">Server 3 (Mirror)</button>
+                    <button class="server-btn btn-server-1 ${defaultServer === 4 ? 'active' : ''}" id="serverBtn4" onclick="switchServer(4)">Server 4 (VidLink)</button>
 
                     ${activeItem.trailerKey ? `
                         <button class="trailer-btn" id="trailerBtn" onclick="toggleTrailerView()">
@@ -225,6 +247,17 @@ async function showMovieDetails(id, type) {
     }
 }
 
+// Dismiss Single-Ad Click Shield
+function dismissShield() {
+    const shield = document.getElementById('clickShield');
+    if (shield) {
+        shield.classList.add('fade-out');
+        setTimeout(() => shield.remove(), 250);
+    }
+    showToast("🎬 Player Unlocked! Starting stream...");
+}
+
+// Render iframe
 function renderPlayerIframe(url) {
     return `
         <iframe 
@@ -238,30 +271,38 @@ function renderPlayerIframe(url) {
     `;
 }
 
-// Server URL router
+// Server URL router (All active & stable endpoints)
 function getStreamUrl(serverNo, type, id, season = 1, episode = 1) {
     if (type === 'tv') {
-        // Server 1: VidLink (Ad-Free, Built-in episodes, Subtitles)
+        // Server 1: VidSrc Standard (Most reliable for all series)
         if (serverNo === 1) {
-            return `https://vidlink.pro/tv/${id}/${season}/${episode}?primaryColor=e50914&secondaryColor=141414&iconColor=e50914`;
+            return `https://vidsrc.me/embed/tv?tmdb=${id}&season=${season}&episode=${episode}`;
         }
-        // Server 2: vidsrc.to / vidsrc.pro
+        // Server 2: VidSrc CC v2
         if (serverNo === 2) {
-            return `https://vidsrc.to/embed/tv/${id}/${season}/${episode}`;
+            return `https://vidsrc.cc/v2/embed/tv/${id}/${season}/${episode}`;
         }
-        // Server 3: vidsrc.me (sandboxed)
-        return `https://vidsrc.me/embed/tv?tmdb=${id}&season=${season}&episode=${episode}`;
+        // Server 3: VidSrc XYZ
+        if (serverNo === 3) {
+            return `https://vidsrc.xyz/embed/tv?tmdb=${id}&season=${season}&episode=${episode}`;
+        }
+        // Server 4: VidLink Pro
+        return `https://vidlink.pro/tv/${id}/${season}/${episode}?primaryColor=e50914&secondaryColor=141414&iconColor=e50914`;
     } else {
-        // Server 1: VidLink (Ad-Free, HD, Subtitles)
+        // Server 1: VidSrc Standard (Most reliable for movies)
         if (serverNo === 1) {
-            return `https://vidlink.pro/movie/${id}?primaryColor=e50914&secondaryColor=141414&iconColor=e50914`;
+            return `https://vidsrc.me/embed/movie?tmdb=${id}`;
         }
-        // Server 2: vidsrc.to / vidsrc.pro
+        // Server 2: VidSrc CC v2
         if (serverNo === 2) {
-            return `https://vidsrc.to/embed/movie/${id}`;
+            return `https://vidsrc.cc/v2/embed/movie/${id}`;
         }
-        // Server 3: vidsrc.me (sandboxed)
-        return `https://vidsrc.me/embed/movie?tmdb=${id}`;
+        // Server 3: VidSrc XYZ
+        if (serverNo === 3) {
+            return `https://vidsrc.xyz/embed/movie?tmdb=${id}`;
+        }
+        // Server 4: VidLink Pro
+        return `https://vidlink.pro/movie/${id}?primaryColor=e50914&secondaryColor=141414&iconColor=e50914`;
     }
 }
 
@@ -269,9 +310,11 @@ function switchServer(serverNo) {
     activeItem.currentServer = serverNo;
     activeItem.isTrailer = false;
 
-    document.querySelectorAll('.server-btn').forEach((btn, idx) => {
-        btn.classList.toggle('active', (idx + 1) === serverNo);
-    });
+    // Update active button state
+    for (let i = 1; i <= 4; i++) {
+        const btn = document.getElementById(`serverBtn${i}`);
+        if (btn) btn.classList.toggle('active', i === serverNo);
+    }
 
     const trailerBtn = document.getElementById('trailerBtn');
     if (trailerBtn) {
@@ -304,7 +347,10 @@ function toggleTrailerView() {
             trailerBtn.style.background = 'var(--primary-red)';
             trailerBtn.style.color = '#fff';
         }
-        document.querySelectorAll('.server-btn').forEach(btn => btn.classList.remove('active'));
+        for (let i = 1; i <= 4; i++) {
+            const btn = document.getElementById(`serverBtn${i}`);
+            if (btn) btn.classList.remove('active');
+        }
         showToast("Playing Official Trailer");
     } else {
         switchServer(activeItem.currentServer || 1);
@@ -336,7 +382,7 @@ function closeModal() {
     if (modal) modal.classList.remove('active');
     document.body.style.overflow = 'auto';
 
-    // Destroy iframe immediately to terminate audio and streaming video
+    // Clear iframe to terminate audio and streaming video
     const wrap = document.getElementById('playerWrap');
     if (wrap) wrap.innerHTML = '';
     activeItemData = null;
@@ -347,6 +393,33 @@ function handleBackdropClick(event) {
     if (event.target.id === 'detailsModal') {
         closeModal();
     }
+}
+
+// ==========================================
+// SETTINGS MODAL CONTROLS
+// ==========================================
+function openSettingsModal() {
+    const modal = document.getElementById('settingsModal');
+    if (modal) modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeSettingsModal() {
+    const modal = document.getElementById('settingsModal');
+    if (modal) modal.classList.remove('active');
+    document.body.style.overflow = 'auto';
+}
+
+function handleSettingsBackdrop(event) {
+    if (event.target.id === 'settingsModal') {
+        closeSettingsModal();
+    }
+}
+
+function setDefaultServer(val) {
+    defaultServer = parseInt(val) || 1;
+    localStorage.setItem('appDefaultServer', defaultServer);
+    showToast(`Default server set to Server ${defaultServer}`);
 }
 
 // ==========================================
@@ -549,6 +622,7 @@ function clearAllWatchlist() {
         localStorage.setItem('movieHubWatchlist', JSON.stringify([]));
         renderWatchlist();
         showToast("Watchlist cleared.");
+        closeSettingsModal();
     }
 }
 
@@ -558,7 +632,15 @@ function clearAllWatchlist() {
 function setLanguage(lang) {
     userLang = lang;
     localStorage.setItem('appLanguage', lang);
-    showToast(`Language switched to ${lang === 'hi-IN' ? 'Hindi' : 'English'}`);
+    
+    // Sync both dropdowns
+    const langPicker = document.getElementById('langSelect');
+    if (langPicker) langPicker.value = lang;
+    const settingsLangPicker = document.getElementById('settingsLangSelect');
+    if (settingsLangPicker) settingsLangPicker.value = lang;
+
+    const langName = lang === 'hi-IN' ? 'Hindi' : (lang === 'ja-JP' ? 'Japanese' : (lang === 'ko-KR' ? 'Korean' : 'English'));
+    showToast(`Language switched to ${langName}`);
     
     if (currentActiveSection === 'home') {
         initializeApp();
